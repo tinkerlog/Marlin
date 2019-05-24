@@ -47,11 +47,11 @@
 //
 // Limit Switches
 //
-#define X_MIN_PIN          64 //12
+#define X_MIN_PIN          12 // 64 //12
 #define X_MAX_PIN          -1
-#define Y_MIN_PIN          69 //11
+#define Y_MIN_PIN          11 // 69 //11
 #define Y_MAX_PIN          -1
-#define Z_MIN_PIN          68 //10
+#define Z_MIN_PIN          10 // 68 //10
 #define Z_MAX_PIN          -1
 
 //

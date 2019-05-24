@@ -2984,14 +2984,14 @@ static void do_homing_move(const AxisEnum axis, const float distance, const floa
 
 static void homeaxis(const AxisEnum axis) {
 
-  #if IS_SCARA
-    // Only Z homing (with probe) is permitted
-    if (axis != Z_AXIS) { BUZZ(100, 880); return; }
-  #else
+  // #if IS_SCARA
+  //   // Only Z homing (with probe) is permitted
+  //  if (axis != Z_AXIS) { BUZZ(100, 880); return; }
+  // #else
     #define CAN_HOME(A) \
       (axis == A##_AXIS && ((A##_MIN_PIN > -1 && A##_HOME_DIR < 0) || (A##_MAX_PIN > -1 && A##_HOME_DIR > 0)))
     if (!CAN_HOME(X) && !CAN_HOME(Y) && !CAN_HOME(Z)) return;
-  #endif
+  // #endif
 
   #if ENABLED(DEBUG_LEVELING_FEATURE)
     if (DEBUGGING(LEVELING)) {
@@ -3914,6 +3914,8 @@ inline void gcode_G4() {
  */
 inline void gcode_G28(const bool always_home_all) {
 
+  SERIAL_ECHOLN("--- gcode_G28");
+
   #if ENABLED(DEBUG_LEVELING_FEATURE)
     if (DEBUGGING(LEVELING)) {
       SERIAL_ECHOLNPGM(">>> gcode_G28");
@@ -4038,6 +4040,8 @@ inline void gcode_G28(const bool always_home_all) {
         active_extruder_parked = true;
 
       #else
+
+        SERIAL_ECHOLN("----- homing x");
 
         HOMEAXIS(X);
 
