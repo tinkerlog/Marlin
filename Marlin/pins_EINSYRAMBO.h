@@ -166,3 +166,5 @@
 
   #endif // NEWPANEL
 #endif // ULTRA_LCD
+
+#define SERVO0_PIN 10

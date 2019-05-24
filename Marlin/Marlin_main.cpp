@@ -298,6 +298,7 @@
 
 #if HAS_SERVOS
   #include "servo.h"
+  // #include "ServoEasing.h"
 #endif
 
 #if HAS_DIGIPOTSS
@@ -925,6 +926,7 @@ void suicide() {
 
 void servo_init() {
   #if NUM_SERVOS >= 1 && HAS_SERVO_0
+    SERIAL_ECHOPAIR(" servo init, ", SERVO0_PIN);
     servo[0].attach(SERVO0_PIN);
     servo[0].detach(); // Just set up the pin. We don't have a position yet. Don't move to a random position.
   #endif
