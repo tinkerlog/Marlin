@@ -499,6 +499,9 @@ static_assert(1 >= 0
   #if ENABLED(MAKERARM_SCARA)
     + 1
   #endif
+  #if ENABLED(ALEX_SCARA)
+    + 1
+  #endif
   #if ENABLED(COREXY)
     + 1
   #endif

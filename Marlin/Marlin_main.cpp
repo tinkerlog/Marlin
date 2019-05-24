@@ -93,7 +93,7 @@
  * M28  - Start SD write: "M28 /path/file.gco". (Requires SDSUPPORT)
  * M29  - Stop SD write. (Requires SDSUPPORT)
  * M30  - Delete file from SD: "M30 /path/file.gco"
- * M31  - Report time since last M109 or SD card start to serial.
+ * M31  - Reprot time since last M109 or SD card start to serial.
  * M32  - Select file and start SD print: "M32 [S<bytepos>] !/path/file.gco#". (Requires SDSUPPORT)
  *        Use P to run other files as sub-programs: "M32 P !filename#"
  *        The '#' is necessary when calling from within sd files, as it stops buffer prereading
@@ -1500,7 +1500,7 @@ static void set_axis_is_at_home(const AxisEnum axis) {
     }
   #endif
 
-  #if ENABLED(MORGAN_SCARA)
+  #if ENABLED(MORGAN_SCARA) || ENABLED(ALEX_SCARA)
 
     /**
      * Morgan SCARA homes XY at the same time
@@ -12699,7 +12699,7 @@ void prepare_move_to_destination() {
 
 #endif // USE_CONTROLLER_FAN
 
-#if ENABLED(MORGAN_SCARA)
+#if ENABLED(MORGAN_SCARA) || ENABLED(ALEX_SCARA)
 
   /**
    * Morgan SCARA Forward Kinematics. Results in cartes[].
@@ -13609,4 +13609,3 @@ void loop() {
   endstops.report_state();
   idle();
 }
-
