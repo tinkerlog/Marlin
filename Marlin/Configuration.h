@@ -79,7 +79,7 @@
 //#define MAKERARM_SCARA
 
 #if ENABLED(MORGAN_SCARA) || ENABLED(MAKERARM_SCARA) || ENABLED(ALEX_SCARA)
-  //#define DEBUG_SCARA_KINEMATICS
+  #define DEBUG_SCARA_KINEMATICS
   //#define SCARA_FEEDRATE_SCALING // Convert XY feedrate from mm/s to degrees/s on the fly
 
   // If movement is choppy try lowering this value
@@ -91,8 +91,8 @@
 
   // SCARA tower offset (position of Tower relative to bed zero position)
   // This needs to be reasonably accurate as it defines the printbed position in the SCARA space.
-  #define SCARA_OFFSET_X 100 //mm
-  #define SCARA_OFFSET_Y -56 //mm
+  #define SCARA_OFFSET_X 0 //mm
+  #define SCARA_OFFSET_Y 0 //mm
 
   // Radius around the center where the arm cannot reach
   #define MIDDLE_DEAD_ZONE_R 0 //mm
@@ -526,8 +526,8 @@
 
 // Mechanical endstop with COM to ground and NC to Signal uses "false" here (most common setup).
 #define X_MIN_ENDSTOP_INVERTING true // set to true to invert the logic of the endstop.
-#define Y_MIN_ENDSTOP_INVERTING false // set to true to invert the logic of the endstop.
-#define Z_MIN_ENDSTOP_INVERTING false // set to true to invert the logic of the endstop.
+#define Y_MIN_ENDSTOP_INVERTING true // set to true to invert the logic of the endstop.
+#define Z_MIN_ENDSTOP_INVERTING true // set to true to invert the logic of the endstop.
 #define X_MAX_ENDSTOP_INVERTING false // set to true to invert the logic of the endstop.
 #define Y_MAX_ENDSTOP_INVERTING false // set to true to invert the logic of the endstop.
 #define Z_MAX_ENDSTOP_INVERTING false // set to true to invert the logic of the endstop.
@@ -809,8 +809,8 @@
 // @section machine
 
 // The size of the print bed
-#define X_BED_SIZE 200
-#define Y_BED_SIZE 200
+#define X_BED_SIZE 600
+#define Y_BED_SIZE 600
 
 // Travel limits (mm) after homing, corresponding to endstop positions.
 #define X_MIN_POS 0
