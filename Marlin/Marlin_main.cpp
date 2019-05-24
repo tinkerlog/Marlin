@@ -776,6 +776,7 @@ inline void sync_plan_position_e() { planner.set_e_position_mm(current_position[
 #if IS_KINEMATIC
 
   inline void sync_plan_position_kinematic() {
+    SERIAL_ECHOLN("sync_plan_position_kinematic");
     #if ENABLED(DEBUG_LEVELING_FEATURE)
       if (DEBUGGING(LEVELING)) DEBUG_POS("sync_plan_position_kinematic", current_position);
     #endif
@@ -1518,7 +1519,7 @@ static void set_axis_is_at_home(const AxisEnum axis) {
        * and calculate homing offset using forward kinematics
        */
       inverse_kinematics(homeposition);
-      forward_kinematics_SCARA(delta[A_AXIS], delta[B_AXIS]);
+      forward_kinematics_SCARA_ALEX(delta[A_AXIS], delta[B_AXIS]);
 
       // SERIAL_ECHOPAIR("Cartesian X:", cartes[X_AXIS]);
       // SERIAL_ECHOLNPAIR(" Y:", cartes[Y_AXIS]);
@@ -8060,7 +8061,7 @@ void report_current_position() {
 
   #if IS_SCARA
     SERIAL_PROTOCOLPAIR("SCARA Theta:", stepper.get_axis_position_degrees(A_AXIS));
-    SERIAL_PROTOCOLLNPAIR("   Psi+Theta:", stepper.get_axis_position_degrees(B_AXIS));
+    SERIAL_PROTOCOLLNPAIR(", Psi:", stepper.get_axis_position_degrees(B_AXIS));
     SERIAL_EOL();
   #endif
 }
@@ -9064,15 +9065,19 @@ inline void gcode_M303() {
   #endif
 }
 
-#if ENABLED(MORGAN_SCARA)
+// #if ENABLED(MORGAN_SCARA)
+#if ENABLED(ALEX_SCARA)
 
   bool SCARA_move_to_cal(uint8_t delta_a, uint8_t delta_b) {
     if (IsRunning()) {
-      forward_kinematics_SCARA(delta_a, delta_b);
+      SERIAL_ECHOLN("----- isRunning");
+      forward_kinematics_SCARA_ALEX(delta_a, delta_b);
       destination[X_AXIS] = LOGICAL_X_POSITION(cartes[X_AXIS]);
       destination[Y_AXIS] = LOGICAL_Y_POSITION(cartes[Y_AXIS]);
       destination[Z_AXIS] = current_position[Z_AXIS];
+      SERIAL_ECHOLN("----- isRunning2");
       prepare_move_to_destination();
+      SERIAL_ECHOLN("----- isRunning3");
       return true;
     }
     return false;
@@ -11379,7 +11384,8 @@ void process_next_command() {
         gcode_M303();
         break;
 
-      #if ENABLED(MORGAN_SCARA)
+      // #if ENABLED(MORGAN_SCARA)
+      #if ENABLED(ALEX_SCARA)
         case 360:  // M360: SCARA Theta pos1
           if (gcode_M360()) return;
           break;
@@ -12042,7 +12048,7 @@ void get_cartesian_from_steppers() {
     cartes[Y_AXIS] += LOGICAL_Y_POSITION(0);
     cartes[Z_AXIS] += LOGICAL_Z_POSITION(0);
   #elif IS_SCARA
-    forward_kinematics_SCARA(
+    forward_kinematics_SCARA_ALEX(
       stepper.get_axis_position_degrees(A_AXIS),
       stepper.get_axis_position_degrees(B_AXIS)
     );
@@ -12208,6 +12214,8 @@ void set_current_from_steppers_for_axis(const AxisEnum axis) {
    */
   inline bool prepare_kinematic_move_to(float ltarget[XYZE]) {
 
+    SERIAL_ECHOLN("----- prepare_kinematic_move_to");
+
     // Get the top feedrate of the move in the XY plane
     const float _feedrate_mm_s = MMS_SCALED(feedrate_mm_s);
 
@@ -12332,6 +12340,7 @@ void set_current_from_steppers_for_axis(const AxisEnum axis) {
    * Returns true if the caller didn't update current_position.
    */
   inline bool prepare_move_to_destination_cartesian() {
+    SERIAL_ECHOLN("----- prepare_move_to_dest_cart")
     #if ENABLED(AUTO_BED_LEVELING_UBL)
       const float fr_scaled = MMS_SCALED(feedrate_mm_s);
       if (ubl.state.active) { // direct use of ubl.state.active for speed
@@ -12732,6 +12741,26 @@ void prepare_move_to_destination() {
     //*/
   }
 
+  void forward_kinematics_SCARA_ALEX(const float &a, const float &b) {
+
+    // compute elbow position
+    float x1 = cos(RADIANS(a)) * L1;
+    float y1 = sin(RADIANS(a)) * L1;
+
+    // compute hand position
+    float x2 = x1 + cos(RADIANS(b)) * L2;
+    float y2 = y1 + sin(RADIANS(b)) * L2;
+
+    cartes[X_AXIS] = x2;
+    cartes[Y_AXIS] = y2;
+
+    SERIAL_ECHOPAIR("SCARA FK Angle a=", a);
+    SERIAL_ECHOPAIR(" b=", b);
+    SERIAL_ECHOPAIR(" cartes[X_AXIS]=", cartes[X_AXIS]);
+    SERIAL_ECHOLNPAIR(" cartes[Y_AXIS]=", cartes[Y_AXIS]);
+
+  }
+
   /**
    * Morgan SCARA Inverse Kinematics. Results in delta[].
    *
@@ -12778,7 +12807,7 @@ void prepare_move_to_destination() {
       SERIAL_ECHOPAIR(" C2=", C2);
       SERIAL_ECHOPAIR(" S2=", S2);
       SERIAL_ECHOPAIR(" Theta=", THETA);
-      SERIAL_ECHOLNPAIR(" Phi=", PHI);
+      SERIAL_ECHOLNPAIR(" Psi=", PSI);
     //*/
   }
 
@@ -13388,6 +13417,7 @@ void setup() {
   // This also updates variables in the planner, elsewhere
   (void)settings.load();
 
+
   #if HAS_M206_COMMAND
     // Initialize current position based on home_offset
     COPY(current_position, home_offset);
@@ -13395,8 +13425,17 @@ void setup() {
     ZERO(current_position);
   #endif
 
+  // init current position
+  current_position[X_AXIS] = 1400.0;
+  current_position[Y_AXIS] =    0.0;
+  current_position[Z_AXIS] =    0.0;
+
   // Vital to init stepper/planner equivalent for current_position
   SYNC_PLAN_POSITION_KINEMATIC();
+
+  SERIAL_ECHOLNPAIR("current_position x = ", current_position[X_AXIS]);
+  SERIAL_ECHOLNPAIR("current_position y = ", current_position[Y_AXIS]);
+  SERIAL_ECHOLNPAIR("current_position z = ", current_position[Z_AXIS]);
 
   thermalManager.init();    // Initialize temperature loop
 
@@ -13555,6 +13594,9 @@ void setup() {
       pe_deactivate_magnet(1);
     #endif
   #endif
+
+  report_current_position();
+
 }
 
 /**
