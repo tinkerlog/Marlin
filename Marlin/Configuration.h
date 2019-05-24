@@ -100,6 +100,12 @@
   #define THETA_HOMING_OFFSET 0  //calculatated from Calibration Guide and command M360 / M114 see picture in http://reprap.harleystudio.co.za/?page_id=1073
   #define PSI_HOMING_OFFSET   0  //calculatated from Calibration Guide and command M364 / M114 see picture in http://reprap.harleystudio.co.za/?page_id=1073
 
+  // max and min angles for ALEX_SCARA
+  #define SCARA_THETA_MAX  100.0
+  #define SCARA_THETA_MIN -100.0
+  #define SCARA_PSI_MAX  170.0
+  #define SCARA_PSI_MIN -170.0
+
 #endif
 
 //===========================================================================

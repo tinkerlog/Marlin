@@ -308,6 +308,7 @@ extern float soft_endstop_min[XYZ], soft_endstop_max[XYZ];
 #elif IS_SCARA
   void forward_kinematics_SCARA(const float &a, const float &b);
   void forward_kinematics_SCARA_ALEX(const float &a, const float &b);
+  boolean check_scara_destination_angles(float delta[3]);
 #endif
 
 #if ENABLED(AUTO_BED_LEVELING_BILINEAR)

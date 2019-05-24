@@ -12300,6 +12300,11 @@ void set_current_from_steppers_for_axis(const AxisEnum axis) {
 
       ADJUST_DELTA(logical); // Adjust Z if bed leveling is enabled
 
+      if (!check_scara_destination_angles(delta)) {
+        SERIAL_ECHOLN("destination angles out of reach!");
+        return;
+      }
+
       #if IS_SCARA && ENABLED(SCARA_FEEDRATE_SCALING)
         // For SCARA scale the feed rate from mm/s to degrees/s
         // Use ratio between the length of the move and the larger angle change
@@ -12809,6 +12814,19 @@ void prepare_move_to_destination() {
       SERIAL_ECHOPAIR(" Theta=", THETA);
       SERIAL_ECHOLNPAIR(" Psi=", PSI);
     //*/
+  }
+
+
+  boolean check_scara_destination_angles(float delta[3]) {
+    float relPsi;
+    if ((delta[A_AXIS] > SCARA_THETA_MAX) || (delta[A_AXIS] < SCARA_THETA_MIN)) {
+      return false;
+    }
+    relPsi = delta[B_AXIS] - delta[A_AXIS];
+    if ((relPsi > SCARA_PSI_MAX) || (relPsi < SCARA_PSI_MIN)) {
+      return false;
+    }
+    return true;
   }
 
 #endif // MORGAN_SCARA
