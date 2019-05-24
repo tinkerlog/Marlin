@@ -298,7 +298,7 @@
 
 #if HAS_SERVOS
   #include "servo.h"
-  // #include "ServoEasing.h"
+  #include "ServoEaser.h"
 #endif
 
 #if HAS_DIGIPOTSS
@@ -655,7 +655,9 @@ static bool send_ok[BUFSIZE];
 
 #if HAS_SERVOS
   Servo servo[NUM_SERVOS];
+  ServoEaser servoEaser;
   #define MOVE_SERVO(I, P) servo[I].move(P)
+  #define EASE_SERVO(I, P) servoEaser.easeTo(P, 1000)
   #if HAS_Z_SERVO_ENDSTOP
     #define DEPLOY_Z_SERVO() MOVE_SERVO(Z_ENDSTOP_SERVO_NR, z_servo_angle[0])
     #define STOW_Z_SERVO() MOVE_SERVO(Z_ENDSTOP_SERVO_NR, z_servo_angle[1])
@@ -928,6 +930,7 @@ void servo_init() {
   #if NUM_SERVOS >= 1 && HAS_SERVO_0
     SERIAL_ECHOPAIR(" servo init, ", SERVO0_PIN);
     servo[0].attach(SERVO0_PIN);
+    servoEaser.begin(servo[0], 20);
     servo[0].detach(); // Just set up the pin. We don't have a position yet. Don't move to a random position.
   #endif
   #if NUM_SERVOS >= 2 && HAS_SERVO_1
@@ -8859,6 +8862,29 @@ inline void gcode_M226() {
     }
   }
 
+  /**
+   * M280: Get or set servo position. P<index> [S<angle>]
+   */
+  inline void gcode_M281() {
+    if (!parser.seen('P')) return;
+    const int servo_index = parser.value_int();
+    if (WITHIN(servo_index, 0, NUM_SERVOS - 1)) {
+      if (parser.seen('S'))
+        EASE_SERVO(servo_index, parser.value_int());
+      else {
+        SERIAL_ECHO_START();
+        SERIAL_ECHOPAIR(" Servo ", servo_index);
+        SERIAL_ECHOLNPAIR(": ", servo[servo_index].read());
+      }
+    }
+    else {
+      SERIAL_ERROR_START();
+      SERIAL_ECHOPAIR("Servo ", servo_index);
+      SERIAL_ECHOLNPGM(" out of range");
+    }
+  }
+
+
 #endif // HAS_SERVOS
 
 #if HAS_BUZZER
@@ -11332,6 +11358,10 @@ void process_next_command() {
         case 280: // M280: Set servo position absolute
           gcode_M280();
           break;
+
+        case 281: // M280: ease to servo position absolute
+          gcode_M281();
+          break;
       #endif // HAS_SERVOS
 
       #if HAS_BUZZER
@@ -13261,6 +13291,8 @@ void idle(
   #if ENABLED(MAX7219_DEBUG)
     Max7219_idle_tasks();
   #endif  // MAX7219_DEBUG
+
+  servoEaser.update();
 
   lcd_update();
 
