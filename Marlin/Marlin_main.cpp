@@ -656,7 +656,7 @@ static bool send_ok[BUFSIZE];
 #if HAS_SERVOS
   Servo servo[NUM_SERVOS];
   ServoEaser servoEaser;
-  #define MOVE_SERVO(I, P) servo[I].move(P)
+  #define MOVE_SERVO(I, P) servoEaser.move(P)
   #define EASE_SERVO(I, P) servoEaser.easeTo(P, 1000)
   #if HAS_Z_SERVO_ENDSTOP
     #define DEPLOY_Z_SERVO() MOVE_SERVO(Z_ENDSTOP_SERVO_NR, z_servo_angle[0])
@@ -13280,6 +13280,69 @@ void manage_inactivity(bool ignore_stepper_queue/*=false*/) {
   planner.check_axes_activity();
 }
 
+// 50ms
+#define TICK_DELTA 50
+// 50*100 = 5000ms
+#define IDLE_TICKS 100
+// 50*20  = 1000ms
+#define PRINT_TICKS 20
+
+long nextTick = 0;
+long tickCount = 0;
+long idleTickCount = 0;
+float lastTheta = 0.0;
+float lastPsi = 0.0;
+bool isIdle = false;
+
+void delta_z_update() {
+
+  if (millis() > nextTick) {
+
+    // compute next tick
+    nextTick = millis() + TICK_DELTA;
+
+    tickCount++;
+    float theta = stepper.get_axis_position_degrees(A_AXIS);
+    float psi = stepper.get_axis_position_degrees(B_AXIS);
+
+    // check if we should go into idle mode
+    if (lastTheta == theta && lastPsi == psi) {
+      if (isIdle) {
+        return;
+      }
+      idleTickCount++;
+      if (idleTickCount == IDLE_TICKS) {
+        // check if we are idle and if so, detach the servo
+        isIdle = true;
+        SERIAL_ECHOLN("servo: standby");
+        servo[0].detach();
+        return;
+      }
+    }
+    else {
+      idleTickCount = 0;
+      isIdle = false;
+    }
+    lastTheta = theta;
+    lastPsi = psi;
+
+    // compute deviation and move the servo
+    float relPsi = stepper.get_axis_position_degrees(A_AXIS) - stepper.get_axis_position_degrees(B_AXIS);
+    float servoDelta = cos(relPsi * 0.034906585039887) * 27.5 + 27.5;
+    servoEaser.moveDelta(servoDelta);
+
+    if (tickCount % PRINT_TICKS == 0) {
+      SERIAL_PROTOCOLPAIR("SCARA Theta:", stepper.get_axis_position_degrees(A_AXIS));
+      SERIAL_PROTOCOLPAIR(", Psi:", stepper.get_axis_position_degrees(B_AXIS));
+      SERIAL_PROTOCOLPAIR(", relPsi:", relPsi);
+      SERIAL_PROTOCOLPAIR(", servoPos:", servoEaser.getCurrPos());
+      SERIAL_PROTOCOLLNPAIR(", servoDelta:", servoEaser.getDelta());
+    }
+  }
+
+}
+
+
 /**
  * Standard idle routine keeps the machine alive
  */
@@ -13291,6 +13354,8 @@ void idle(
   #if ENABLED(MAX7219_DEBUG)
     Max7219_idle_tasks();
   #endif  // MAX7219_DEBUG
+
+  delta_z_update();
 
   servoEaser.update();
 

@@ -1,7 +1,7 @@
 //
 // ServoEaser.h -- Arduino library for Servo easing
 //
-// ServoEaser is an Arduino library makes doing animation-style movements 
+// ServoEaser is an Arduino library makes doing animation-style movements
 // with servos easier.
 //
 // Features:
@@ -9,7 +9,7 @@
 // - Supports playing of previously-defined "move lists"
 // - User-specified easing functions (defaults to easeInOutCubic),see Easing lib
 // - User-specified "servo arrived" function for async callback when move done
-// - Supports both integer angle movement and a "microseconds" mode for 
+// - Supports both integer angle movement and a "microseconds" mode for
 //    fine-grained control with float-ing point angles
 // - Works with both new Arduino 1.0 and Arduino 0022.
 //
@@ -20,7 +20,7 @@
 // -- http://robertpenner.com/easing/easing_demo.html
 //
 // 2011, TeamPneumo, Tod E. Kurt, http://todbot.com/blog/
-// 
+//
 //
 
 
@@ -35,7 +35,7 @@
 
 #include <Servo.h>
 
-// simple struct to encapsulate a servo move 
+// simple struct to encapsulate a servo move
 typedef struct _servoMove {
     int pos;   // position of servo in degrees
     int dur;   // duration in milliseconds to get to and stay at that position
@@ -47,25 +47,26 @@ typedef struct _servoMove {
 // t: current time, b: beginning value, c: change in value, d: duration
 // t and d can be in frames or seconds/milliseconds
 //
-typedef float (*EasingFunc)(float t, float b, float c, float d); 
+typedef float (*EasingFunc)(float t, float b, float c, float d);
 
 // define "ArrivedFunc" to be called when servo arrives at position
 // arguments provided are: currPos of servo & movesIndex of move list (if appl)
 typedef void (*ArrivedFunc)(int currPos, int movesIndex);
 
 
-class ServoEaser 
+class ServoEaser
 {
 private:
     Servo servo;      // what servo we're operating on
     int frameMillis;  // minimum update time between servo moves
     float startPos;   // where servo started its tween
     float currPos;    // current servo position, best of our knowledge
+    float delta;
 
     float changePos;  // from servoMove list
 
     int durMillis;    // from servoMove list
-    int tick;         // count of easing moves within move duration 
+    int tick;         // count of easing moves within move duration
     int tickCount;    // number of frames between start & end pos
     unsigned long lastMillis; // time time we did something
 
@@ -76,28 +77,28 @@ private:
 
     EasingFunc easingFunc; // func that describes tween motion
     ArrivedFunc arrivedFunc; // func to call when servo arrives at dest
-    
+
     boolean running;  // is servo easer running?
     boolean arrived;  // has servo arrived at its destination
-    boolean useMicros;// do math using float angles and microseconds 
+    boolean useMicros;// do math using float angles and microseconds
     boolean flipped;  // is servo mounted upside down so 0-180 -> 180->0?
 
     void getNextPos();
     int angleToMicros(float angle);
 
     // duplicate Servo min/max micros functionality
-    int8_t min;   // minimum is this value times 4 added to MIN_PULSE_WIDTH    
-    int8_t max;   // maximum is this value times 4 added to MAX_PULSE_WIDTH   
+    int8_t min;   // minimum is this value times 4 added to MIN_PULSE_WIDTH
+    int8_t max;   // maximum is this value times 4 added to MAX_PULSE_WIDTH
 
 public:
-    
+
     // set up a servoeaser to use a particular servo
     //void begin(Servo s, int frameTime, int startPos);
     void begin(Servo s, int frameTime); //, int startPos);
     void begin(Servo s, int frameTime, ServoMove* moves, int movesCount);
 
     void reset();
-    
+
     // tell a servo to play a list of servo moves
     // movesCount is number of moves in the list
     // movesReps is number of times to repeat
@@ -108,9 +109,13 @@ public:
     // for manual movement of the servo (non moves list)
     void easeTo( int pos, int durMillis );
 
+    void move(int value);              // attach the servo, then move to value
+    void moveDelta(int value);
+
     // get current position in degrees
     float getCurrPos();
-    
+    float getDelta();
+
     // call this periodically in loop()
     void update();
 
@@ -131,12 +136,12 @@ public:
     boolean isFlipped();
 
     // mirrors of Servos min/max values, set these if you need differnt
-    // min/max microsecond bounds  (unfortunately, we can't get at 
+    // min/max microsecond bounds  (unfortunately, we can't get at
     // Servo's values for these.  These values are only used if
     // you enable "useMicroseconds()"
     void setMinMaxMicroseconds( int min, int max );
 
-    // enable fine-grained mode by doing servo.writeMicroseconds() 
+    // enable fine-grained mode by doing servo.writeMicroseconds()
     void useMicroseconds(boolean t);
 
     boolean usingMicroseconds();

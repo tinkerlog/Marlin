@@ -86,6 +86,7 @@ void ServoEaser::begin(Servo s, int frameTime)
 void ServoEaser::reset()
 {
     currPos = servo.read();
+    delta = 0.0;
     startPos = currPos;  // get everyone in sync
     changePos = 0;       // might be overwritten below
 
@@ -123,6 +124,16 @@ void ServoEaser::play( ServoMove* mlist, int mcount, int mreps, int mindex)
     arrived = false;
 
     reset();
+}
+
+void ServoEaser::move(int pos) {
+  servo.move(delta + pos);
+  currPos = pos;
+}
+
+void ServoEaser::moveDelta(int delta) {
+  this->delta = delta;
+  servo.move(delta + currPos);
 }
 
 // manual, non-moves list, control of easer position
@@ -198,7 +209,8 @@ void ServoEaser::update()
     if( useMicros ) {
         servo.writeMicroseconds( angleToMicros(p) );
     } else {
-        servo.write( p );
+        // servo.write( p );
+        servo.move( delta + p );
     }
 }
 
@@ -267,6 +279,10 @@ boolean ServoEaser::hasArrived()
 float ServoEaser::getCurrPos()
 {
     return currPos;
+}
+
+float ServoEaser::getDelta() {
+  return delta;
 }
 
 //
