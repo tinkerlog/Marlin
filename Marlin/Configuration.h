@@ -86,8 +86,8 @@
   #define SCARA_SEGMENTS_PER_SECOND 20
 
   // Length of inner and outer support arms. Measure arm lengths precisely.
-  #define SCARA_LINKAGE_1 700 //mm
-  #define SCARA_LINKAGE_2 700 //mm
+  #define SCARA_LINKAGE_1 702 //mm
+  #define SCARA_LINKAGE_2 725 //mm
 
   // SCARA tower offset (position of Tower relative to bed zero position)
   // This needs to be reasonably accurate as it defines the printbed position in the SCARA space.
@@ -568,7 +568,7 @@
  * Override with M92
  *                                      X, Y, Z, E0 [, E1[, E2[, E3[, E4]]]]
  */
-#define DEFAULT_AXIS_STEPS_PER_UNIT   { 95, 89, 4000, 500 }
+#define DEFAULT_AXIS_STEPS_PER_UNIT   { 94.79, 88.89, 4000, 500 }
 
 /**
  * Default Max Feed Rate (mm/s)

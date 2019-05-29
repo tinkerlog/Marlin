@@ -657,7 +657,7 @@ static bool send_ok[BUFSIZE];
   Servo servo[NUM_SERVOS];
   ServoEaser servoEaser;
   #define MOVE_SERVO(I, P) servoEaser.move(P)
-  #define EASE_SERVO(I, P) servoEaser.easeTo(P, 1000)
+  #define EASE_SERVO(I, P) servoEaser.easeTo(P, 1500)
   #if HAS_Z_SERVO_ENDSTOP
     #define DEPLOY_Z_SERVO() MOVE_SERVO(Z_ENDSTOP_SERVO_NR, z_servo_angle[0])
     #define STOW_Z_SERVO() MOVE_SERVO(Z_ENDSTOP_SERVO_NR, z_servo_angle[1])
@@ -13332,11 +13332,13 @@ void delta_z_update() {
     servoEaser.moveDelta(servoDelta);
 
     if (tickCount % PRINT_TICKS == 0) {
+
       SERIAL_PROTOCOLPAIR("SCARA Theta:", stepper.get_axis_position_degrees(A_AXIS));
       SERIAL_PROTOCOLPAIR(", Psi:", stepper.get_axis_position_degrees(B_AXIS));
       SERIAL_PROTOCOLPAIR(", relPsi:", relPsi);
       SERIAL_PROTOCOLPAIR(", servoPos:", servoEaser.getCurrPos());
       SERIAL_PROTOCOLLNPAIR(", servoDelta:", servoEaser.getDelta());
+
     }
   }
 
@@ -13543,7 +13545,7 @@ void setup() {
   #endif
 
   // init current position
-  current_position[X_AXIS] = 1400.0;
+  current_position[X_AXIS] = SCARA_LINKAGE_1 +  SCARA_LINKAGE_2;
   current_position[Y_AXIS] =    0.0;
   current_position[Z_AXIS] =    0.0;
 
