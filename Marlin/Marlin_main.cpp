@@ -13327,8 +13327,14 @@ void delta_z_update() {
     lastPsi = psi;
 
     // compute deviation and move the servo
-    float relPsi = stepper.get_axis_position_degrees(A_AXIS) - stepper.get_axis_position_degrees(B_AXIS);
-    float servoDelta = cos(relPsi * 0.034906585039887) * 27.5 + 27.5;
+    float relPsi = - stepper.get_axis_position_degrees(A_AXIS) + stepper.get_axis_position_degrees(B_AXIS);
+    if (relPsi > 90) {
+      relPsi = 180 - relPsi;
+    }
+
+    float servoDelta = cos(relPsi * 0.034906585039887) * 27.5 + 27.5 + 10 * sin(relPsi * 0.034906585039887);
+    // float servoDelta = (27.5 + 27.5 * cos(relPsi * 0.034906585039887) + 2.2 * sin(relPsi * 0.034906585039887));
+
     servoEaser.moveDelta(servoDelta);
 
     if (tickCount % PRINT_TICKS == 0) {
@@ -13337,6 +13343,7 @@ void delta_z_update() {
       SERIAL_PROTOCOLPAIR(", Psi:", stepper.get_axis_position_degrees(B_AXIS));
       SERIAL_PROTOCOLPAIR(", relPsi:", relPsi);
       SERIAL_PROTOCOLPAIR(", servoPos:", servoEaser.getCurrPos());
+      SERIAL_PROTOCOLPAIR(", servoDelta0:", servoDelta);
       SERIAL_PROTOCOLLNPAIR(", servoDelta:", servoEaser.getDelta());
 
     }
