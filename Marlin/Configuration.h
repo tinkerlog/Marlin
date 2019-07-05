@@ -106,6 +106,9 @@
   #define SCARA_PSI_MAX  170.0
   #define SCARA_PSI_MIN -170.0
 
+  #define SCARA_Z_VALUES_X_MAX 10
+  #define SCARA_Z_VALUES_Y_MAX 10
+
 #endif
 
 //===========================================================================

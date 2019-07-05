@@ -350,6 +350,15 @@
                            || isnan(ubl.z_values[0][0]))
 #endif
 
+// VL6180X distance sensor for "bed levelling"
+#include "Wire.h"
+#include "VL6180X.h"
+
+float zValues[SCARA_Z_VALUES_X_MAX][SCARA_Z_VALUES_Y_MAX];
+bool doCounterBalance = true;
+VL6180X sensor;
+
+
 bool Running = true;
 
 uint8_t marlin_debug_flags = DEBUG_NONE;
@@ -657,7 +666,7 @@ static bool send_ok[BUFSIZE];
   Servo servo[NUM_SERVOS];
   ServoEaser servoEaser;
   #define MOVE_SERVO(I, P) servoEaser.move(P)
-  #define EASE_SERVO(I, P) servoEaser.easeTo(P, 1500)
+  #define EASE_SERVO(I, P, T) servoEaser.easeTo(P, T)
   #if HAS_Z_SERVO_ENDSTOP
     #define DEPLOY_Z_SERVO() MOVE_SERVO(Z_ENDSTOP_SERVO_NR, z_servo_angle[0])
     #define STOW_Z_SERVO() MOVE_SERVO(Z_ENDSTOP_SERVO_NR, z_servo_angle[1])
@@ -8870,7 +8879,7 @@ inline void gcode_M226() {
     const int servo_index = parser.value_int();
     if (WITHIN(servo_index, 0, NUM_SERVOS - 1)) {
       if (parser.seen('S'))
-        EASE_SERVO(servo_index, parser.value_int());
+        EASE_SERVO(servo_index, parser.value_int(), 1500);
       else {
         SERIAL_ECHO_START();
         SERIAL_ECHOPAIR(" Servo ", servo_index);
@@ -8886,6 +8895,111 @@ inline void gcode_M226() {
 
 
 #endif // HAS_SERVOS
+
+inline void gcode_M285() {
+  SERIAL_ECHO_START();
+  SERIAL_ECHOLNPAIR(" Depth: ", sensor.readRangeSingleMillimeters());
+}
+
+float get_z_sample() {
+  float value = 0.0f;
+  for (int i = 0; i < 20; i++) {
+    value += sensor.readRangeSingleMillimeters();
+    dwell(200);
+  }
+  return value / 20;
+}
+
+void gcode_M286() {
+
+  if (!parser.seen('X')) {
+    return;
+  }
+  int xStart = parser.value_int();
+
+  if (!parser.seen('Y')) {
+    return;
+  }
+  int yStart = parser.value_int();
+
+  if (!parser.seen('I')) {
+    return;
+  }
+  int xCount = parser.value_int();
+
+  if (!parser.seen('J')) {
+    return;
+  }
+  int yCount = parser.value_int();
+
+  if (!parser.seen('S')) {
+    return;
+  }
+  int stepWidth = parser.value_int();
+
+  SERIAL_ECHO_START();
+  SERIAL_ECHOPAIR("xStart:", xStart);
+  SERIAL_ECHOPAIR(" yStart:", yStart);
+  SERIAL_ECHOPAIR(" xCount:", xCount);
+  SERIAL_ECHOPAIR(" yCount:", yCount);
+  SERIAL_ECHOLNPAIR(" stepWidth:", stepWidth);
+
+  if (xCount > SCARA_Z_VALUES_X_MAX || yCount > SCARA_Z_VALUES_Y_MAX) {
+    SERIAL_ECHO_START();
+    SERIAL_ECHOLN("error: xCount or yCount");
+    return;
+  }
+
+  doCounterBalance = false;
+
+  for (int y = 0; y < yCount; y++) {
+
+    int yPos = yStart + y * stepWidth;
+
+    for (int x = 0; x < xCount; x++) {
+
+      int xPos = xStart + x * stepWidth;
+
+      // G0 X<...> Y<...>
+      destination[X_AXIS] = xPos;
+      destination[Y_AXIS] = yPos;
+      prepare_uninterpolated_move_to_destination();
+
+      // M400
+      stepper.synchronize();
+      dwell(1000);
+
+      float sample = get_z_sample();
+      float delta = zValues[x][y] - sample;
+      zValues[x][y] = sample;
+
+      SERIAL_ECHO_START();
+      SERIAL_ECHOPAIR("x:", x);
+      SERIAL_ECHOPAIR(" y:", y);
+      SERIAL_ECHOPAIR(" xPos:", xPos);
+      SERIAL_ECHOPAIR(" yPos:", yPos);
+      SERIAL_ECHOPAIR(" depth:", zValues[x][y]);
+      SERIAL_ECHOLNPAIR(" delta:", delta);
+
+    }
+  }
+
+  doCounterBalance = true;
+
+}
+
+inline void gcode_M283() {
+  if (parser.seen('U')) {
+    EASE_SERVO(0, 0, 1000);
+  }
+  else if (parser.seen('H')) {
+    EASE_SERVO(0, 60, 1000);
+  }
+  else if (parser.seen('D')) {
+    EASE_SERVO(0, 110, 1000);
+  }
+}
+
 
 #if HAS_BUZZER
 
@@ -11364,6 +11478,18 @@ void process_next_command() {
           break;
       #endif // HAS_SERVOS
 
+      case 283:
+        gcode_M283();
+        break;
+
+      case 285:
+        gcode_M285();
+        break;
+
+      case 286:
+        gcode_M286();
+        break;
+
       #if HAS_BUZZER
         case 300: // M300: Play beep tone
           gcode_M300();
@@ -13296,6 +13422,10 @@ bool isIdle = false;
 
 void delta_z_update() {
 
+  if (!doCounterBalance) {
+    return;
+  }
+
   if (millis() > nextTick) {
 
     // compute next tick
@@ -13720,6 +13850,19 @@ void setup() {
       pe_deactivate_magnet(1);
     #endif
   #endif
+
+  // init VL6180X sensor
+  Wire.begin();
+  sensor.init();
+  sensor.configureDefault();
+  sensor.setTimeout(500);
+
+  // clear
+  for (int y = 0; y < SCARA_Z_VALUES_Y_MAX; y++) {
+    for (int x = 0; x < SCARA_Z_VALUES_X_MAX; x++) {
+      zValues[x][y] = 0.0;
+    }
+  }
 
   report_current_position();
 
