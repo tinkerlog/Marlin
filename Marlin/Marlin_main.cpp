@@ -350,12 +350,19 @@
                            || isnan(ubl.z_values[0][0]))
 #endif
 
+// ALEX_SCARA
 // VL6180X distance sensor for "bed levelling"
 #include "Wire.h"
 #include "VL6180X.h"
 
 float zValues[SCARA_Z_VALUES_X_MAX][SCARA_Z_VALUES_Y_MAX];
-bool doCounterBalance = true;
+float zValueRef = 0.0;
+int levelStartX, levelStartY;
+int levelCountX = 0, levelCountY = 0;
+int levelGridWidth;
+float servoDelta = SERVO_INITIAL;
+
+bool doLevelling = true;
 VL6180X sensor;
 
 
@@ -8862,6 +8869,7 @@ inline void gcode_M226() {
         SERIAL_ECHO_START();
         SERIAL_ECHOPAIR(" Servo ", servo_index);
         SERIAL_ECHOLNPAIR(": ", servo[servo_index].read());
+        servo[servo_index].detach();
       }
     }
     else {
@@ -8896,11 +8904,6 @@ inline void gcode_M226() {
 
 #endif // HAS_SERVOS
 
-inline void gcode_M285() {
-  SERIAL_ECHO_START();
-  SERIAL_ECHOLNPAIR(" Depth: ", sensor.readRangeSingleMillimeters());
-}
-
 float get_z_sample() {
   float value = 0.0f;
   for (int i = 0; i < 20; i++) {
@@ -8910,55 +8913,64 @@ float get_z_sample() {
   return value / 20;
 }
 
+inline void gcode_M285() {
+  SERIAL_ECHO_START();
+  SERIAL_ECHOLNPAIR(" Depth: ", get_z_sample());
+}
+
 void gcode_M286() {
 
   if (!parser.seen('X')) {
     return;
   }
-  int xStart = parser.value_int();
+  levelStartX = parser.value_int();
 
   if (!parser.seen('Y')) {
     return;
   }
-  int yStart = parser.value_int();
+  levelStartY = parser.value_int();
 
   if (!parser.seen('I')) {
     return;
   }
-  int xCount = parser.value_int();
+  levelCountX = parser.value_int();
 
   if (!parser.seen('J')) {
     return;
   }
-  int yCount = parser.value_int();
+  levelCountY = parser.value_int();
 
   if (!parser.seen('S')) {
     return;
   }
-  int stepWidth = parser.value_int();
+  levelGridWidth = parser.value_int();
 
   SERIAL_ECHO_START();
-  SERIAL_ECHOPAIR("xStart:", xStart);
-  SERIAL_ECHOPAIR(" yStart:", yStart);
-  SERIAL_ECHOPAIR(" xCount:", xCount);
-  SERIAL_ECHOPAIR(" yCount:", yCount);
-  SERIAL_ECHOLNPAIR(" stepWidth:", stepWidth);
+  SERIAL_ECHOPAIR("xStart:", levelStartX);
+  SERIAL_ECHOPAIR(" yStart:", levelStartY);
+  SERIAL_ECHOPAIR(" xCount:", levelCountX);
+  SERIAL_ECHOPAIR(" yCount:", levelCountY);
+  SERIAL_ECHOLNPAIR(" stepWidth:", levelGridWidth);
 
-  if (xCount > SCARA_Z_VALUES_X_MAX || yCount > SCARA_Z_VALUES_Y_MAX) {
+  if (levelCountX > SCARA_Z_VALUES_X_MAX || levelCountY > SCARA_Z_VALUES_Y_MAX) {
     SERIAL_ECHO_START();
     SERIAL_ECHOLN("error: xCount or yCount");
     return;
   }
 
-  doCounterBalance = false;
+  doLevelling = false;
 
-  for (int y = 0; y < yCount; y++) {
+  // get sample at the current position as reference
+  zValueRef = get_z_sample();
+  SERIAL_ECHOLNPAIR("zRef: ", zValueRef);
 
-    int yPos = yStart + y * stepWidth;
+  for (int y = 0; y < levelCountY; y++) {
 
-    for (int x = 0; x < xCount; x++) {
+    int yPos = levelStartY + y * levelGridWidth;
 
-      int xPos = xStart + x * stepWidth;
+    for (int x = 0; x < levelCountY; x++) {
+
+      int xPos = levelStartX + x * levelGridWidth;
 
       // G0 X<...> Y<...>
       destination[X_AXIS] = xPos;
@@ -8970,21 +8982,29 @@ void gcode_M286() {
       dwell(1000);
 
       float sample = get_z_sample();
-      float delta = zValues[x][y] - sample;
-      zValues[x][y] = sample;
+      float delta = zValueRef - sample;
+      zValues[x][y] = delta;
 
       SERIAL_ECHO_START();
       SERIAL_ECHOPAIR("x:", x);
       SERIAL_ECHOPAIR(" y:", y);
       SERIAL_ECHOPAIR(" xPos:", xPos);
       SERIAL_ECHOPAIR(" yPos:", yPos);
-      SERIAL_ECHOPAIR(" depth:", zValues[x][y]);
-      SERIAL_ECHOLNPAIR(" delta:", delta);
+      SERIAL_ECHOLNPAIR(" depth:", zValues[x][y]);
 
     }
   }
 
-  doCounterBalance = true;
+  // back home
+  destination[X_AXIS] = SCARA_HOME_X;
+  destination[Y_AXIS] = SCARA_HOME_Y;
+  prepare_uninterpolated_move_to_destination();
+
+  // M400
+  stepper.synchronize();
+  dwell(1000);
+
+  doLevelling = true;
 
 }
 
@@ -13406,6 +13426,12 @@ void manage_inactivity(bool ignore_stepper_queue/*=false*/) {
   planner.check_axes_activity();
 }
 
+float lerp(float v0, float v1, float t) {
+  return (1 - t) * v0 + t * v1;
+}
+
+// ALEX_SCARA
+
 // 50ms
 #define TICK_DELTA 50
 // 50*100 = 5000ms
@@ -13422,7 +13448,7 @@ bool isIdle = false;
 
 void delta_z_update() {
 
-  if (!doCounterBalance) {
+  if (!doLevelling) {
     return;
   }
 
@@ -13443,8 +13469,10 @@ void delta_z_update() {
       idleTickCount++;
       if (idleTickCount == IDLE_TICKS) {
         // check if we are idle and if so, detach the servo
+        // Detaching the servo does not help to eliminate the humming noise,
+        // because we're using a digital servo, which tries to keep the position,
+        // even if it does not receive any signal any more. :(
         isIdle = true;
-        SERIAL_ECHOLN("servo: standby");
         servo[0].detach();
         return;
       }
@@ -13456,27 +13484,62 @@ void delta_z_update() {
     lastTheta = theta;
     lastPsi = psi;
 
-    // compute deviation and move the servo
-    float relPsi = - stepper.get_axis_position_degrees(A_AXIS) + stepper.get_axis_position_degrees(B_AXIS);
-    if (relPsi > 90) {
-      relPsi = 180 - relPsi;
+    // float currentX = current_position[X_AXIS];
+    // float currentY = current_position[Y_AXIS];
+
+    // compute elbow and hand position
+    float x1 = cos(RADIANS(theta)) * L1;
+    float y1 = sin(RADIANS(theta)) * L1;
+    // compute hand position
+    float currentX = x1 + cos(RADIANS(psi)) * L2;
+    float currentY = y1 + sin(RADIANS(psi)) * L2;
+
+    float maxX = levelStartX + levelCountX * levelGridWidth;
+    float maxY = levelStartY + levelCountY * levelGridWidth;
+
+    if (currentX >= levelStartX && currentY >= levelStartY &&
+      currentX <= maxX && currentY <= maxY) {
+
+      int gridX = currentX - levelStartX;
+      int gridY = currentY - levelStartY;
+      int x1 = gridX / levelGridWidth;
+      int y1 = gridY / levelGridWidth;
+      int x2 = x1 + 1;
+      int y2 = y1 + 1;
+
+      float dx = (gridX - x1 * levelGridWidth) / (float)levelGridWidth;
+      float dy = (gridY - y1 * levelGridWidth) / (float)levelGridWidth;
+
+      float zx1 = lerp(zValues[x1][y1], zValues[x2][y1], dx);
+      float zx2 = lerp(zValues[x1][y2], zValues[x2][y2], dx);
+      float lerpz = lerp(zx1, zx2, dy);
+
+      servoDelta = SERVO_INITIAL - lerpz * SERVO_LEVEL_FACTOR;
+
+      if (tickCount % PRINT_TICKS == 0) {
+
+        SERIAL_ECHOPAIR("SCARA x:", currentX);
+        SERIAL_ECHOPAIR(", y:", currentY);
+        // SERIAL_PROTOCOLPAIR(", dx:", dx);
+        // SERIAL_PROTOCOLPAIR(", dy:", dy);
+        // SERIAL_PROTOCOLPAIR(", zx1:", zx1);
+        // SERIAL_PROTOCOLPAIR(", zx2:", zx2);
+        SERIAL_ECHOPAIR(", lerpz:", lerpz);
+        SERIAL_ECHOLNPAIR(", serv:", servoDelta);
+
+      }
+
+      servoEaser.moveDelta(servoDelta);
+
+    }
+    else {
+      if (tickCount % PRINT_TICKS == 0) {
+        SERIAL_ECHOPAIR("SCARA x:", currentX);
+        SERIAL_ECHOPAIR(", y:", currentY);
+        SERIAL_ECHOLN(", out of bounds!");
+      }
     }
 
-    float servoDelta = cos(relPsi * 0.034906585039887) * 27.5 + 27.5 + 10 * sin(relPsi * 0.034906585039887);
-    // float servoDelta = (27.5 + 27.5 * cos(relPsi * 0.034906585039887) + 2.2 * sin(relPsi * 0.034906585039887));
-
-    servoEaser.moveDelta(servoDelta);
-
-    if (tickCount % PRINT_TICKS == 0) {
-
-      SERIAL_PROTOCOLPAIR("SCARA Theta:", stepper.get_axis_position_degrees(A_AXIS));
-      SERIAL_PROTOCOLPAIR(", Psi:", stepper.get_axis_position_degrees(B_AXIS));
-      SERIAL_PROTOCOLPAIR(", relPsi:", relPsi);
-      SERIAL_PROTOCOLPAIR(", servoPos:", servoEaser.getCurrPos());
-      SERIAL_PROTOCOLPAIR(", servoDelta0:", servoDelta);
-      SERIAL_PROTOCOLLNPAIR(", servoDelta:", servoEaser.getDelta());
-
-    }
   }
 
 }
@@ -13682,8 +13745,8 @@ void setup() {
   #endif
 
   // init current position
-  current_position[X_AXIS] = SCARA_LINKAGE_1 +  SCARA_LINKAGE_2;
-  current_position[Y_AXIS] =    0.0;
+  current_position[X_AXIS] = SCARA_HOME_X;
+  current_position[Y_AXIS] = SCARA_HOME_Y;
   current_position[Z_AXIS] =    0.0;
 
   // Vital to init stepper/planner equivalent for current_position
@@ -13701,6 +13764,7 @@ void setup() {
 
   stepper.init();    // Initialize stepper, this enables interrupts!
   servo_init();
+  servoEaser.moveDelta(servoDelta);
 
   #if HAS_PHOTOGRAPH
     OUT_WRITE(PHOTOGRAPH_PIN, LOW);
@@ -13857,7 +13921,13 @@ void setup() {
   sensor.configureDefault();
   sensor.setTimeout(500);
 
+  // ALEX_SCARA
   // clear
+  levelCountX = 0;
+  levelCountY = 0;
+  levelStartX = 0;
+  levelStartY = 0;
+  levelGridWidth = 0;
   for (int y = 0; y < SCARA_Z_VALUES_Y_MAX; y++) {
     for (int x = 0; x < SCARA_Z_VALUES_X_MAX; x++) {
       zValues[x][y] = 0.0;

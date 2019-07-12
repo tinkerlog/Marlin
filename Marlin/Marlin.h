@@ -318,6 +318,15 @@ extern float soft_endstop_min[XYZ], soft_endstop_max[XYZ];
   float bilinear_z_offset(const float logical[XYZ]);
 #endif
 
+// ALEX_SCARA
+extern float zValueRef;
+extern float zValues[SCARA_Z_VALUES_X_MAX][SCARA_Z_VALUES_Y_MAX];
+extern int levelStartX, levelStartY;
+extern int levelCountX, levelCountY;
+extern int levelGridWidth;
+
+
+
 #if ENABLED(AUTO_BED_LEVELING_UBL)
   typedef struct { double A, B, D; } linear_fit;
   linear_fit* lsf_linear_fit(double x[], double y[], double z[], const int);

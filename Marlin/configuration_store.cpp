@@ -36,7 +36,7 @@
  *
  */
 
-#define EEPROM_VERSION "V40"
+#define EEPROM_VERSION "V44"
 
 // Change EEPROM version if these are changed:
 #define EEPROM_OFFSET 100
@@ -644,6 +644,19 @@ void MarlinSettings::postprocess() {
       for (uint8_t q = 3; q--;) EEPROM_WRITE(dummyui32);
     #endif
 
+    // ALEX_SCARA
+    EEPROM_WRITE(levelCountX);
+    EEPROM_WRITE(levelCountY);
+    EEPROM_WRITE(levelStartX);
+    EEPROM_WRITE(levelStartY);
+    EEPROM_WRITE(levelGridWidth);
+    EEPROM_WRITE(zValueRef);
+    for (int y = 0; y < SCARA_Z_VALUES_Y_MAX; y++) {
+      for (int x = 0; x < SCARA_Z_VALUES_X_MAX; x++) {
+        EEPROM_WRITE(zValues[x][y]);
+      }
+    }
+
     if (!eeprom_error) {
       const int eeprom_size = eeprom_index;
 
@@ -1003,6 +1016,20 @@ void MarlinSettings::postprocess() {
         uint32_t dummyui32;
         for (uint8_t q = 3; q--;) EEPROM_READ(dummyui32);
       #endif
+
+
+      // ALEX_SCARA
+      EEPROM_READ(levelCountX);
+      EEPROM_READ(levelCountY);
+      EEPROM_READ(levelStartX);
+      EEPROM_READ(levelStartY);
+      EEPROM_READ(levelGridWidth);
+      EEPROM_READ(zValueRef);
+      for (int y = 0; y < SCARA_Z_VALUES_Y_MAX; y++) {
+        for (int x = 0; x < SCARA_Z_VALUES_X_MAX; x++) {
+          EEPROM_READ(zValues[x][y]);
+        }
+      }
 
       if (working_crc == stored_crc) {
         postprocess();
@@ -1848,6 +1875,22 @@ void MarlinSettings::reset() {
       SERIAL_ECHOPAIR(" E", stepper.motor_current_setting[2]);
       SERIAL_EOL();
     #endif
+
+    // ALEX_SCARA
+    SERIAL_ECHOLNPGM("Levelling:");
+    SERIAL_ECHOPAIR("xStart: ", levelStartX);
+    SERIAL_ECHOPAIR(", yStart: ", levelStartY);
+    SERIAL_ECHOPAIR(", xCount: ", levelCountX);
+    SERIAL_ECHOPAIR(", yCount: ", levelCountY);
+    SERIAL_ECHOPAIR(", grid: ", levelGridWidth);
+    SERIAL_ECHOLNPAIR(", zRef: ", zValueRef);
+    for (int y = 0; y < levelCountY; y++) {
+      for (int x = 0; x < levelCountX; x++) {
+        SERIAL_ECHOPAIR(", ", zValues[x][y]);
+      }
+      SERIAL_EOL();
+    }
+
   }
 
 #endif // !DISABLE_M503
