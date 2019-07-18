@@ -9016,7 +9016,7 @@ inline void gcode_M283() {
     EASE_SERVO(0, 60, 1000);
   }
   else if (parser.seen('D')) {
-    EASE_SERVO(0, 110, 1000);
+    EASE_SERVO(0, 105, 1000);
   }
 }
 
