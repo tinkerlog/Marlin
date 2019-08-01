@@ -945,10 +945,10 @@
   #define INTERPOLATE          1  // Interpolate X/Y/Z_MICROSTEPS to 256
 
   #define X_CURRENT          750  // rms current in mA. Multiply by 1.41 for peak current.
-  #define X_MICROSTEPS        16  // 0..256
+  #define X_MICROSTEPS        32  // 0..256
 
   #define Y_CURRENT          750
-  #define Y_MICROSTEPS        16
+  #define Y_MICROSTEPS        32
 
   #define Z_CURRENT          750
   #define Z_MICROSTEPS        16
