@@ -8968,7 +8968,7 @@ void gcode_M286() {
 
     int yPos = levelStartY + y * levelGridWidth;
 
-    for (int x = 0; x < levelCountY; x++) {
+    for (int x = 0; x < levelCountX; x++) {
 
       int xPos = levelStartX + x * levelGridWidth;
 
